@@ -18,15 +18,41 @@ router.get('/:id', async (req, res) => {
 // POST /cursos
 router.post('/', async (req, res) => {
   try {
+    console.log('Body recebido:', req.body);
+    // Validate nome
+    if (!req.body || !req.body.nome || typeof req.body.nome !== 'string' || req.body.nome.trim() === '') {
+      return res.status(400).json({ error: 'Campo "nome" é obrigatório e deve ser uma string não vazia' });
+    }
+    // Validate idiomaId
+    if (!req.body.idiomaId || isNaN(parseInt(req.body.idiomaId))) {
+      return res.status(400).json({ error: 'Campo "idiomaId" é obrigatório e deve ser um número válido' });
+    }
+    // Validate cargaHoraria
+    if (!req.body.cargaHoraria || isNaN(parseInt(req.body.cargaHoraria)) || parseInt(req.body.cargaHoraria) <= 0) {
+      return res.status(400).json({ error: 'Campo "cargaHoraria" é obrigatório e deve ser um número inteiro positivo' });
+    }
+    const idiomaId = parseInt(req.body.idiomaId);
+    const cargaHoraria = parseInt(req.body.cargaHoraria);
+    // Check if idioma exists
+    const idioma = await prisma.idioma.findUnique({ where: { id: idiomaId } });
+    if (!idioma) {
+      return res.status(400).json({ error: `Idioma com id ${idiomaId} não encontrado` });
+    }
+    // Create curso
     const curso = await prisma.curso.create({ 
       data: { 
         nome: req.body.nome, 
-        idiomaId: parseInt(req.body.idiomaId) 
+        idiomaId: idiomaId,
+        cargaHoraria: cargaHoraria
       } 
     });
     res.status(201).json(curso);
   } catch (error) {
-    res.status(400).json({ error: 'Dados inválidos' });
+    console.error('Erro ao criar curso:', error);
+    if (error.code === 'P2003') {
+      return res.status(400).json({ error: `Idioma com id ${req.body.idiomaId} não existe` });
+    }
+    res.status(500).json({ error: 'Erro interno ao criar curso: ' + error.message });
   }
 });
 
